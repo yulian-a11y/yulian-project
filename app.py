@@ -1,14 +1,15 @@
 import streamlit as st
 import google.generativeai as genai
+from gtts import gTTS
+import base64
 
-# --- 1. KONFIGURASI API KEY ---
-# Pastikan tidak ada spasi di dalam tanda kutip ini
+# --- KONFIGURASI API (100% GRATIS) ---
 API_KEY = "AIzaSyDfHcDfors-zLMSk09nuKzWQEUmSSdbUaM"
 
-# Setting Halaman Full Screen
+# Setting Halaman Melebar (Full Screen)
 st.set_page_config(page_title="SY-Core AI", layout="wide")
 
-# CSS untuk melebarkan kotak chat
+# CSS Khusus untuk Tampilan Full
 st.markdown("""
     <style>
     .block-container { max-width: 98% !important; padding: 1rem; }
@@ -16,43 +17,45 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. INISIALISASI MODEL (TRIK ANTI-404) ---
-try:
-    genai.configure(api_key=API_KEY)
-    # Trik: Menggunakan 'gemini-1.5-flash' adalah jalur paling stabil dan gratis
-    model = genai.GenerativeModel('gemini-1.5-flash')
-except Exception as e:
-    st.error(f"Gagal koneksi: {e}")
+# Inisialisasi AI
+genai.configure(api_key=API_KEY)
 
-# --- 3. ANTARMUKA CHAT ---
+# Fungsi Suara
+def bicara(teks):
+    try:
+        tts = gTTS(text=teks[:300], lang='id')
+        tts.save("s.mp3")
+        with open("s.mp3", "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+            st.markdown(f'<audio src="data:audio/mp3;base64,{b64}" autoplay></audio>', unsafe_allow_html=True)
+    except: pass
+
 st.title("🌐 SY-Core AI Universal")
-st.write(f"Sistem: **Aktif & Gratis** | Pengembang: **Slamet Yulianto**")
+st.write("Developer: **Slamet Yulianto** | Status: **Online & Gratis**")
 st.write("---")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "m" not in st.session_state: st.session_state.m = []
 
-# Tampilkan history chat
-for msg in st.session_state.messages:
+# Tampilan Chat Full
+for i, msg in enumerate(st.session_state.m):
     with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+        st.write(msg["content"])
+        if msg["role"] == "assistant":
+            if st.button("🔊 Putar", key=f"s_{i}"): bicara(msg["content"])
 
 # Input Chat
-prompt = st.chat_input("Tanya apa saja ke SY-Core...")
+p = st.chat_input("Tanya apa saja...")
 
-if prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.spinner("SY-Core sedang memproses..."):
+if p:
+    st.session_state.m.append({"role": "user", "content": p})
+    with st.chat_message("user"): st.write(p)
+    
+    with st.spinner("Berpikir..."):
         try:
-            # Panggilan paling dasar agar tidak terdeteksi v1beta
-            response = model.generate_content(prompt)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            # Gunakan model gemini-pro yang paling stabil
+            model = genai.GenerativeModel('gemini-pro')
+            r = model.generate_content(p)
+            st.session_state.m.append({"role": "assistant", "content": r.text})
             st.rerun()
         except Exception as e:
-            # Jika masih error 404, ini adalah solusi otomatis terakhir
-            st.error("Sistem sedang melakukan penyesuaian otomatis. Silakan coba kirim pesan sekali lagi.")
-            # Paksa ganti ke model alternatif yang selalu tersedia gratis
-            model = genai.GenerativeModel('gemini-1.5-pro')
+            st.error(f"Koneksi sedikit terganggu, silakan coba lagi.")
