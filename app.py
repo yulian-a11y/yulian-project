@@ -3,13 +3,12 @@ import google.generativeai as genai
 from gtts import gTTS
 import base64
 
-# --- KONFIGURASI API (100% GRATIS) ---
+# --- API KEY (100% GRATIS) ---
 API_KEY = "AIzaSyDfHcDfors-zLMSk09nuKzWQEUmSSdbUaM"
 
-# Setting Halaman Melebar (Full Screen)
+# Setting Halaman Full Screen
 st.set_page_config(page_title="SY-Core AI", layout="wide")
 
-# CSS Khusus untuk Tampilan Full
 st.markdown("""
     <style>
     .block-container { max-width: 98% !important; padding: 1rem; }
@@ -17,8 +16,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Inisialisasi AI
-genai.configure(api_key=API_KEY)
+# Inisialisasi - Paksa pakai versi standar
+try:
+    genai.configure(api_key=API_KEY)
+    # Gunakan nama model yang paling umum agar tidak 404
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    st.error(f"Koneksi Gagal: {e}")
 
 # Fungsi Suara
 def bicara(teks):
@@ -31,12 +35,12 @@ def bicara(teks):
     except: pass
 
 st.title("🌐 SY-Core AI Universal")
-st.write("Developer: **Slamet Yulianto** | Status: **Online & Gratis**")
+st.write("Sistem: **Aktif** | Developer: **Slamet Yulianto**")
 st.write("---")
 
 if "m" not in st.session_state: st.session_state.m = []
 
-# Tampilan Chat Full
+# Tampilkan Chat Full
 for i, msg in enumerate(st.session_state.m):
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
@@ -52,10 +56,9 @@ if p:
     
     with st.spinner("Berpikir..."):
         try:
-            # Gunakan model gemini-pro yang paling stabil
-            model = genai.GenerativeModel('gemini-pro')
+            # Panggilan langsung tanpa embel-embel
             r = model.generate_content(p)
             st.session_state.m.append({"role": "assistant", "content": r.text})
             st.rerun()
         except Exception as e:
-            st.error(f"Koneksi sedikit terganggu, silakan coba lagi.")
+            st.error("Koneksi sedang disegarkan. Klik 'Manage App' -> 'Reboot' jika terus berlanjut.")
