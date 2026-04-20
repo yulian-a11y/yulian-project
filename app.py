@@ -3,12 +3,13 @@ import google.generativeai as genai
 from gtts import gTTS
 import base64
 
-# --- 1. SETTING DASAR ---
+# --- 1. SETTING UTAMA ---
 API_KEY = "AIzaSyDfHcDfors-zLMSk09nuKzWQEUmSSdbUaM"
 
-# Tampilan Full Screen (Melebar)
+# Konfigurasi Tampilan Full Screen
 st.set_page_config(page_title="SY-Core AI", layout="wide")
 
+# CSS agar tampilan lega dan modern
 st.markdown("""
     <style>
     .block-container { max-width: 98% !important; padding: 1rem; }
@@ -16,14 +17,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. INISIALISASI MESIN (JALUR STABIL v1) ---
-try:
-    genai.configure(api_key=API_KEY)
-    # Trik: Menggunakan 'gemini-1.5-flash' dengan awalan 'models/' 
-    # Ini cara paling ampuh untuk akun gratis agar tidak 404
-    model = genai.GenerativeModel('models/gemini-1.5-flash')
-except Exception as e:
-    st.error(f"Sistem gagal mulai: {e}")
+# --- 2. KONEKSI LANGSUNG ---
+# Kita gunakan nama model tanpa embel-embel 'models/' atau 'v1beta'
+genai.configure(api_key=API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # Fungsi Suara
 def bicara(teks):
@@ -36,15 +33,14 @@ def bicara(teks):
             st.markdown(f'<audio src="data:audio/mp3;base64,{b64}" autoplay></audio>', unsafe_allow_html=True)
     except: pass
 
-# --- 3. ANTARMUKA CHAT ---
+# --- 3. ANTARMUKA ---
 st.title("🌐 SY-Core AI Universal")
-st.write(f"Developer: **Slamet Yulianto** | Status: **Gratis**")
+st.write(f"Developer: **Slamet Yulianto** | Jalur: **Gratis**")
 st.write("---")
 
 if "chat" not in st.session_state:
     st.session_state.chat = []
 
-# Tampilkan history chat secara luas
 for i, m in enumerate(st.session_state.chat):
     with st.chat_message(m["role"]):
         st.write(m["content"])
@@ -52,7 +48,6 @@ for i, m in enumerate(st.session_state.chat):
             if st.button("🔊 Putar", key=f"s_{i}"):
                 bicara(m["content"])
 
-# Input Chat
 p = st.chat_input("Tanya apa saja ke SY-Core...")
 
 if p:
@@ -60,18 +55,13 @@ if p:
     with st.chat_message("user"):
         st.write(p)
     
-    with st.spinner("SY-Core sedang berpikir..."):
+    with st.spinner("SY-Core sedang merespon..."):
         try:
-            # Panggilan paling aman untuk akun gratis
+            # Gunakan jalur paling stabil 'gemini-1.5-flash-latest'
             r = model.generate_content(p)
             st.session_state.chat.append({"role": "assistant", "content": r.text})
             st.rerun()
         except Exception as e:
-            # Jika 'flash' masih tidak ditemukan, kita paksa pakai 'gemini-pro'
-            try:
-                model_alt = genai.GenerativeModel('models/gemini-pro')
-                r = model_alt.generate_content(p)
-                st.session_state.chat.append({"role": "assistant", "content": r.text})
-                st.rerun()
-            except Exception as e2:
-                st.error("Server Google sedang sibuk. Coba lagi dalam 1 menit.")
+            st.error(f"Sistem sedang sinkronisasi. Coba ketik ulang pertanyaanmu sekali lagi.")
+            # Jika error, coba paksa ke model paling basic
+            model = genai.GenerativeModel('gemini-pro')
