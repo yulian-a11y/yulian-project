@@ -3,110 +3,72 @@ from gtts import gTTS
 import base64
 import google.generativeai as genai
 
-# --- 1. KONFIGURASI MESIN (STABIL) ---
-# Gunakan API Key kamu yang sudah benar tadi
+# --- 1. SETTING API KEY GRATIS ---
+# Gunakan kunci AIza yang kamu temukan tadi
 API_KEY = "AIzaSyDfHcDfors-zLMSk09nuKzWQEUmSSdbUaM" 
 genai.configure(api_key=API_KEY)
 
-# Memanggil model tanpa v1beta agar tidak error 404
+# Menggunakan model 'gemini-1.5-flash' (Ini yang paling cepat dan gratis)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 2. FUNGSI SUARA (KLIK BARU BUNYI) ---
-def buat_suara(teks):
+# --- 2. FUNGSI SUARA ---
+def bicara(teks):
     try:
-        # Bersihkan simbol agar suara robot tidak mengeja simbol
-        teks_bersih = teks.replace("*", "").replace("#", "").replace("-", " ")
+        # Bersihkan teks agar suara robot enak didengar
+        teks_bersih = teks.replace("*", "").replace("#", "")
         tts = gTTS(text=teks_bersih[:500], lang='id')
-        tts.save("respon.mp3")
-        with open("respon.mp3", "rb") as f:
+        tts.save("suara.mp3")
+        with open("suara.mp3", "rb") as f:
             data = f.read()
             b64 = base64.b64encode(data).decode()
-            return f'data:audio/mp3;base64,{b64}'
+            st.markdown(f'<audio src="data:audio/mp3;base64,{b64}" autoplay></audio>', unsafe_allow_html=True)
     except:
-        return None
+        pass
 
 # --- 3. TAMPILAN ANTARMUKA FULL SCREEN ---
-# 'layout="wide"' membuat tampilan memenuhi seluruh lebar layar
-st.set_page_config(page_title="SY-Core AI Universal", page_icon="🌐", layout="wide")
+st.set_page_config(page_title="SY-Core AI", layout="wide")
 
-# CSS Khusus untuk membuat tampilan benar-benar "Full" dan Modern
 st.markdown("""
     <style>
-    /* Menghilangkan margin samping agar full screen */
-    .block-container {
-        max-width: 98% !important;
-        padding-top: 1rem !important;
-        padding-bottom: 5rem !important;
-    }
-    /* Warna latar belakang dan teks */
-    .stApp {
-        background-color: #0e1117;
-    }
-    /* Kotak Chat Assistant agar lebih lebar */
-    .stChatMessage {
-        width: 100% !important;
-    }
-    /* Styling Header */
-    .main-header {
-        font-size: 40px;
-        color: #00ffcc;
-        text-align: center;
-        text-shadow: 2px 2px #000;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
+    .block-container { max-width: 98% !important; padding-top: 1rem; }
+    .stApp { background-color: #0b0d10; color: white; }
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown("<h1 class='main-header'>🌐 SY-Core AI Universal</h1>", unsafe_allow_html=True)
-st.write(f"<center>Sistem Kecerdasan Buatan | Pengembang: <b>Slamet Yulianto</b></center>", unsafe_allow_html=True)
+st.title("🌐 SY-Core AI Universal")
+st.write(f"Sistem Aktif | Developer: **Slamet Yulianto**")
 st.write("---")
 
-# Penyimpanan Percakapan (Memory)
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# Memory Chat
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# Menampilkan Riwayat Chat secara Full
-for i, msg in enumerate(st.session_state.messages):
-    with st.chat_message(msg["role"]):
-        # Tampilan teks jawaban
-        st.markdown(msg["content"])
-        
-        # Tombol Speaker di pojok kanan bawah setiap jawaban AI
-        if msg["role"] == "assistant":
-            col_t, col_btn = st.columns([0.94, 0.06])
-            with col_btn:
-                if st.button("🔊", key=f"voice_{i}", help="Klik untuk mendengar suara"):
-                    audio_data = buat_suara(msg["content"])
-                    if audio_data:
-                        st.markdown(f'<audio src="{audio_data}" autoplay></audio>', unsafe_allow_html=True)
+# Tampilkan Chat
+for i, chat in enumerate(st.session_state.chat_history):
+    with st.chat_message(chat["role"]):
+        st.write(chat["content"])
+        if chat["role"] == "assistant":
+            # Tombol speaker di pojok kanan
+            if st.button("🔊 Putar Suara", key=f"btn_{i}"):
+                bicara(chat["content"])
 
-# Input Pesan (Tampilan Melayang di Bawah)
-prompt = st.chat_input("Ketik pesan kamu di sini, Slamet...")
+# Input Chat
+user_query = st.chat_input("Tulis pesan di sini...")
 
-if prompt:
-    # 1. Tambahkan pesan user ke layar
-    st.session_state.messages.append({"role": "user", "content": prompt})
+if user_query:
+    # Simpan pesan user
+    st.session_state.chat_history.append({"role": "user", "content": user_query})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.write(user_query)
 
-    # 2. Proses jawaban dari AI
-    with st.spinner('SY-Core sedang memproses data...'):
+    # Ambil jawaban dari AI Gratis
+    with st.spinner("SY-Core sedang merespon..."):
         try:
-            response = model.generate_content(prompt)
-            jawaban_ai = response.text
+            # Panggilan paling simpel agar tidak error 404
+            response = model.generate_content(user_query)
+            jawaban = response.text
             
-            # Tambahkan jawaban AI ke riwayat
-            st.session_state.messages.append({"role": "assistant", "content": jawaban_ai})
-            
-            # Refresh otomatis untuk memunculkan tombol speaker
+            st.session_state.chat_history.append({"role": "assistant", "content": jawaban})
             st.rerun()
-            
         except Exception as e:
-            st.error(f"Sistem mengalami kendala: {e}")
-
-# Footer bawah
-st.markdown("""
-    <div style='position: fixed; bottom: 0; width: 100%; text-align: center; padding: 10px; background-color: #0e1117;'>
-        <p style='color: grey; font-size: 12px;'>© 2026 SY-Core Project | Ditenagai oleh Gemini AI</p>
-    </div>
-    """, unsafe_allow_html=True)
+            st.error("Gagal terhubung ke server. Pastikan API Key benar.")
