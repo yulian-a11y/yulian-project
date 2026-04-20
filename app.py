@@ -3,14 +3,13 @@ import google.generativeai as genai
 from gtts import gTTS
 import base64
 
-# --- 1. SETTING UTAMA ---
-# Ganti dengan API Key milikmu jika yang di bawah ini tidak jalan
+# --- 1. KONFIGURASI ---
+# Pastikan API Key ini tidak ada spasi di awal/akhir
 API_KEY = "AIzaSyDfHcDfors-zLMSk09nuKzWQEUmSSdbUaM"
 
-# Konfigurasi halaman agar LEBAR (Full Screen)
 st.set_page_config(page_title="SY-Core AI", layout="wide")
 
-# CSS untuk mempercantik dan melebarkan kotak chat
+# CSS untuk tampilan FULL lebar
 st.markdown("""
     <style>
     .block-container { max-width: 98% !important; padding: 1rem; }
@@ -18,23 +17,17 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. KONEKSI KE GOOGLE (DIPERKUAT) ---
-@st.cache_resource
-def inisialisasi_ai():
-    try:
-        genai.configure(api_key=API_KEY)
-        # Menggunakan model paling stabil untuk akun gratis
-        return genai.GenerativeModel('gemini-1.5-flash')
-    except Exception as e:
-        st.error(f"Gagal inisialisasi: {e}")
-        return None
-
-model = inisialisasi_ai()
+# --- 2. INISIALISASI AI (VERSI STABIL) ---
+try:
+    genai.configure(api_key=API_KEY)
+    # Menentukan model tanpa embel-embel v1beta secara manual
+    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+except Exception as e:
+    st.error(f"Gagal konfigurasi: {e}")
 
 # --- 3. FUNGSI SUARA ---
 def putar_suara(teks):
     try:
-        # Bersihkan teks agar suara robot tidak aneh
         teks_bersih = teks.replace("*", "").replace("#", "")
         tts = gTTS(text=teks_bersih[:500], lang='id')
         tts.save("respon.mp3")
@@ -45,16 +38,15 @@ def putar_suara(teks):
     except:
         st.warning("Gagal memutar suara.")
 
-# --- 4. ANTARMUKA (UI) ---
+# --- 4. TAMPILAN ---
 st.title("🌐 SY-Core AI Universal")
-st.write(f"Status: **Online** | Developer: **Slamet Yulianto**")
+st.write(f"Developer: **Slamet Yulianto**")
 st.write("---")
 
-# Memory Chat agar percakapan tidak hilang saat refresh
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Tampilkan chat yang sudah ada
+# Tampilkan chat
 for i, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
@@ -62,26 +54,24 @@ for i, msg in enumerate(st.session_state.messages):
             if st.button("🔊 Suara", key=f"btn_{i}"):
                 putar_suara(msg["content"])
 
-# Kotak Input Chat (Full Width)
+# Input Chat
 user_input = st.chat_input("Tanya apa saja...")
 
 if user_input:
-    # Simpan pesan user
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.write(user_input)
 
-    # Proses jawaban AI
-    if model:
-        with st.spinner("SY-Core sedang berpikir..."):
-            try:
-                # Panggilan API yang paling stabil
-                response = model.generate_content(user_input)
-                jawaban = response.text
-                
-                # Simpan jawaban AI
-                st.session_state.messages.append({"role": "assistant", "content": jawaban})
-                st.rerun() # Refresh agar tombol suara muncul
-            except Exception as e:
-                st.error(f"Koneksi terputus: {e}")
-                st.info("Saran: Coba cek apakah API Key kamu masih aktif di Google AI Studio.")
+    with st.spinner("Berpikir..."):
+        try:
+            # Panggilan langsung tanpa parameter tambahan yang memicu v1beta
+            response = model.generate_content(user_input)
+            
+            if response.text:
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                st.rerun()
+        except Exception as e:
+            # Jika masih 404, kita beri tahu cara perbaikinya
+            st.error(f"Koneksi terputus: {e}")
+            if "404" in str(e):
+                st.info("Saran: Coba ganti baris 'models/gemini-1.5-flash' menjadi 'models/gemini-pro' di kode app.py")
