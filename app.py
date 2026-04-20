@@ -1,36 +1,47 @@
 import streamlit as st
 import google.generativeai as genai
 
-# Konfigurasi Paling Dasar
-st.set_page_config(page_title="SY-Core AI", layout="wide")
+# --- CONFIGURASI DASAR ---
 API_KEY = "AIzaSyDfHcDfors-zLMSk09nuKzWQEUmSSdbUaM"
 
-# Koneksi Langsung (Tanpa System Instruction dulu agar stabil)
-genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+st.set_page_config(page_title="SY-Core Lite", layout="wide")
 
-st.title("🌐 SY-Core AI Universal")
-st.write("Developer: **Slamet Yulianto**")
-st.write("---")
+# Koneksi ke Otak AI
+try:
+    genai.configure(api_key=API_KEY)
+    # Model Flash adalah yang paling ringan dan jarang sibuk
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except:
+    st.error("Gagal koneksi ke server pusat.")
 
+# Judul Sederhana
+st.title("🌐 SY-Core Lite")
+st.caption("Developer: Slamet Yulianto | Mode: Stabil & Ringan")
+
+# Penyimpanan Memori Chat
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Tampilkan Chat
+# Menampilkan Chat
 for chat in st.session_state.chat_history:
     with st.chat_message(chat["role"]):
-        st.markdown(chat["content"])
+        st.write(chat["content"])
 
-# Input
-if p := st.chat_input("Tanya sesuatu..."):
-    st.session_state.chat_history.append({"role": "user", "content": p})
+# Input Chat
+if prompt := st.chat_input("Ketik pesan di sini..."):
+    # Simpan pesan User
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(p)
+        st.write(prompt)
 
-    try:
-        # Panggilan paling simpel
-        response = model.generate_content(p)
-        st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-        st.rerun()
-    except Exception as e:
-        st.error(f"Google belum merespon. Tunggu 5 detik lalu ketik lagi.")
+    # Respon AI
+    with st.chat_message("assistant"):
+        try:
+            # Instruksi singkat agar AI tahu dia SY-Core
+            full_prompt = f"Kamu adalah SY-Core AI buatan Slamet Yulianto. Jawablah: {prompt}"
+            response = model.generate_content(full_prompt)
+            
+            st.write(response.text)
+            st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+        except Exception as e:
+            st.error("Koneksi API terputus. Coba kirim ulang pesan.")
