@@ -4,79 +4,76 @@ import base64
 import google.generativeai as genai
 
 # --- 1. KONFIGURASI API KEY ---
-# Masukkan kode AIza yang tadi kamu temukan di sini
 API_KEY = "AIzaSyDfHcDfors-zLMSk09nuKzWQEUmSSdbUaM" 
-
 genai.configure(api_key=API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Konfigurasi Model dengan kemampuan mencari di internet (Google Search)
-model = genai.GenerativeModel(
-    model_name='gemini-1.5-flash',
-    tools=[{"google_search_retrieval": {}}]
-)
-
-# --- 2. FUNGSI UNTUK MENGHASILKAN SUARA ---
-def bicara(teks):
+# --- 2. FUNGSI SUARA (Manual Klik) ---
+def buat_audio(teks):
     try:
-        # Membersihkan teks dari simbol bintang (*) agar suara lebih jernih
-        teks_bersih = teks.replace("*", "")
+        teks_bersih = teks.replace("*", "").replace("#", "")
         tts = gTTS(text=teks_bersih[:500], lang='id')
         tts.save("respon.mp3")
-        
         with open("respon.mp3", "rb") as f:
             data = f.read()
             b64 = base64.b64encode(data).decode()
-            # Script ini akan memutar suara secara otomatis (autoplay)
-            audio_html = f'<audio controls autoplay><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
-            st.markdown(audio_html, unsafe_allow_html=True)
-    except Exception as e:
-        st.warning("Gagal memproses suara, tapi teks tetap muncul.")
+            return f'data:audio/mp3;base64,{b64}'
+    except:
+        return None
 
-# --- 3. TAMPILAN ANTARMUKA WEBSITE (UI) ---
-st.set_page_config(page_title="SY-Core AI Universal", page_icon="🌐", layout="centered")
+# --- 3. TAMPILAN FULL SCREEN ---
+st.set_page_config(page_title="SY-Core AI Universal", page_icon="🌐", layout="wide")
 
-# CSS untuk mempercantik tampilan
 st.markdown("""
     <style>
-    .main {
-        background-color: #0e1117;
-    }
-    .stTextInput>div>div>input {
-        background-color: #262730;
-        color: white;
-    }
+    .block-container { max-width: 95% !important; }
+    .stChatFloatingInputContainer { bottom: 20px; }
+    /* Gaya untuk header */
+    .header-text { color: #00ffcc; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🌐 SY-Core AI Universal")
-st.subheader("Asisten AI dengan Akses Internet & Suara")
-st.write(f"Sistem Aktif | Pengembang: **Slamet Yulianto**")
+st.markdown("<h1 class='header-text'>🌐 SY-Core AI Universal</h1>", unsafe_allow_html=True)
+st.write(f"<center>Developer: <b>Slamet Yulianto</b></center>", unsafe_allow_html=True)
 st.write("---")
 
-# Input pertanyaan dari pengguna
-user_input = st.text_input("Ketik pertanyaan kamu di sini:", placeholder="Tanya apa saja, misalnya: Berita teknologi terbaru hari ini...")
+# Riwayat Percakapan
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-if user_input:
-    with st.spinner('SY-Core sedang berpikir dan mencari informasi...'):
+# Menampilkan Chat
+for i, message in enumerate(st.session_state.messages):
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+        
+        # Jika ini jawaban AI, tampilkan tombol speaker di pojok kanan bawah jawaban
+        if message["role"] == "assistant":
+            col_text, col_spk = st.columns([0.9, 0.1])
+            with col_spk:
+                if st.button("🔊", key=f"spk_{i}"):
+                    audio_base64 = buat_audio(message["content"])
+                    if audio_base64:
+                        st.markdown(f'<audio src="{audio_base64}" autoplay></audio>', unsafe_allow_html=True)
+
+# Input Pesan
+prompt = st.chat_input("Ketik pesan kamu di sini...")
+
+if prompt:
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.spinner('SY-Core sedang memproses...'):
         try:
-            # Mengirim pertanyaan ke AI
-            response = model.generate_content(user_input)
+            response = model.generate_content(prompt)
             jawaban = response.text
             
-            # Menampilkan percakapan
-            with st.chat_message("user"):
-                st.write(user_input)
-                
-            with st.chat_message("assistant"):
-                st.write(jawaban)
-            
-            # Memanggil fungsi suara
-            bicara(jawaban)
+            st.session_state.messages.append({"role": "assistant", "content": jawaban})
+            # Trigger refresh untuk menampilkan tombol speaker baru
+            st.rerun()
             
         except Exception as e:
-            st.error(f"Terjadi kesalahan: {e}")
-            st.info("Pastikan API Key kamu masih aktif di Google AI Studio.")
+            st.error(f"Terjadi kendala: {e}")
 
-# Footer
 st.write("---")
-st.caption("© 2026 SY-Core Project | Ditenagai oleh Google Gemini & Streamlit")
+st.caption("<center>© 2026 SY-Core Project</center>", unsafe_allow_html=True)
